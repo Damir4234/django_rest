@@ -44,8 +44,11 @@ INSTALLED_APPS = [
 
     # my apps
     'users',
-    'materials'
+    'materials',
+
+    'django_filters',
 ]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
