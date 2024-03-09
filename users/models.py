@@ -1,67 +1,60 @@
-from django.db import models
-from materials.models import Course, Lesson
-# Create your models here.
 from django.contrib.auth.models import AbstractUser
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-from django.contrib.auth.models import UserManager
+from django.db import models
+from django.utils import timezone
+
+from config import settings
+from materials.models import Course, Lesson
 
 
-class CustomUserManager(BaseUserManager):
-    def create_user(self, email, username, phone, city, password=None, **extra_fields):
-        if not email:
-            raise ValueError('The Email field must be set')
-        email = self.normalize_email(email)
-        user = self.model(email=email, username=username,
-                          phone=phone, city=city, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_superuser(self, email, username, phone, city, password=None, **extra_fields):
-        extra_fields.setdefault('is_staff', True)
-        extra_fields.setdefault('is_superuser', True)
-
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True.')
-
-        return self.create_user(email, username, phone, city, password, **extra_fields)
+NULLABLE = {'blank': True, 'null': True}
 
 
-class User(AbstractBaseUser, PermissionsMixin):
-    username = models.CharField(max_length=100)
-    email = models.EmailField(unique=True)
-    phone = models.CharField(max_length=15)
-    city = models.CharField(max_length=100)
-    avatar = models.ImageField(upload_to='avatars/', blank=True)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
+class UserRoles(models.TextChoices):
+    MEMBER = 'member'
+    MODERATOR = 'moderator'
 
-    objects = CustomUserManager()
 
-    USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['username', 'phone', 'city']
+class User(AbstractUser):
+    role = models.CharField(max_length=15, verbose_name='роль',
+                            choices=UserRoles.choices, default=UserRoles.MEMBER)
+
+    username = None
+    email = models.EmailField(unique=True, verbose_name='Почта')
+
+    city = models.CharField(max_length=150, verbose_name='Город', **NULLABLE)
+    phone = models.CharField(max_length=35, verbose_name='Телефон', **NULLABLE)
+    avatar = models.ImageField(
+        upload_to='users/', verbose_name='Аватар', **NULLABLE)
+
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = []
 
     def __str__(self):
         return self.email
 
 
 class Payment(models.Model):
-    user = models.ForeignKey(
-        User, related_name='payments', on_delete=models.CASCADE)
-    payment_date = models.DateField()
-    course = models.ForeignKey(
-        Course, related_name='payments', on_delete=models.CASCADE, null=True)
-    lesson = models.ForeignKey(
-        Lesson, related_name='payments', on_delete=models.CASCADE, null=True)
-    amount = models.DecimalField(max_digits=10, decimal_places=2)
-    PAYMENT_METHOD_CHOICES = [
+    PAYMENT_CHOICES = [
         ('cash', 'Наличные'),
-        ('transfer', 'Перевод на счет'),
+        ('transfer', 'Безналичная оплата'),
     ]
-    payment_method = models.CharField(
-        max_length=10, choices=PAYMENT_METHOD_CHOICES)
+    payment_date = models.DateTimeField(
+        verbose_name='Дата платежа', default=timezone.now())
+    payment_amount = models.FloatField(verbose_name='Сумма платежа')
+    payment_method = models.CharField(max_length=20, verbose_name='Способ платежа', choices=PAYMENT_CHOICES,
+                                      default='cash')
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, verbose_name='Пользователь',
+                             **NULLABLE)
+    course = models.ForeignKey(
+        Course, on_delete=models.DO_NOTHING, related_name='paid', **NULLABLE)
+    lesson = models.ForeignKey(
+        Lesson, on_delete=models.DO_NOTHING, related_name='paid', **NULLABLE)
 
     def __str__(self):
-        return f"{self.user.email} - {self.payment_date}"
+        return f'{self.course if self.course and not self.lesson else self.lesson}, оплачено {self.payment_amount} руб'
+
+    class Meta:
+        verbose_name = 'Платеж'
+        verbose_name_plural = 'Платежи'
+        ordering = ('-payment_date',)

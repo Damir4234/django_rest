@@ -1,14 +1,17 @@
-from rest_framework import permissions
+from rest_framework.permissions import BasePermission
+
+from users.models import UserRoles
 
 
-class IsModerator(permissions.BasePermission):
+class IsModerator(BasePermission):
+    message = "Доступно модераторам"
+
     def has_permission(self, request, view):
-        return request.user.groups.filter(name='Модераторы').exists()
+        return request.user.role == UserRoles.MODERATOR
 
 
-class IsOwner(permissions.BasePermission):
-    """Проверка, является ли пользователь владельцем урока/курса"""
+class IsOwner(BasePermission):
+    message = "Доступно владельцу"
 
     def has_object_permission(self, request, view, obj):
-        """Проверка прав пользователя на конкретный объект"""
         return request.user == obj.owner
