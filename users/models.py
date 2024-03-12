@@ -4,9 +4,7 @@ from django.utils import timezone
 
 from config import settings
 from materials.models import Course, Lesson
-
-
-NULLABLE = {'blank': True, 'null': True}
+from materials.models import NULLABLE
 
 
 class UserRoles(models.TextChoices):
@@ -58,3 +56,17 @@ class Payment(models.Model):
         verbose_name = 'Платеж'
         verbose_name_plural = 'Платежи'
         ordering = ('-payment_date',)
+
+
+class Subscription(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name='Пользователь',
+                             related_name='user')
+    course = models.ForeignKey(
+        Course, on_delete=models.CASCADE, verbose_name='Курс')
+
+    def __str__(self):
+        return f"{self.user} {self.course}"
+
+    class Meta:
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'Подписки'

@@ -1,6 +1,5 @@
 from rest_framework import serializers
-
-from users.models import Payment, User
+from users.models import Payment, User, Subscription
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -8,10 +7,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ('id', 'role', 'email', 'city', 'phone', 'avatar', 'password')
-        extra_kwargs = {
-            'avatar': {'required': False}
-        }
+        fields = '__all__'
 
 
 class PaymentSerializer(serializers.ModelSerializer):
@@ -22,8 +18,17 @@ class PaymentSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class SubscriptionSerializer(serializers.ModelSerializer):
+    """Базовый ериализатор для модели подписки"""
+
+    class Meta:
+        model = Subscription
+        fields = '__all__'
+
+
 class UserDetailSerializer(serializers.ModelSerializer):
-    """Сериализатор для просмотра профиля пользователя, включает поле истории платежей"""
+    """Сериализатор для просмотра профиля пользователя,
+       включает поле истории платежей"""
     payment_list = PaymentSerializer(source='payment_set', many=True)
 
     class Meta:

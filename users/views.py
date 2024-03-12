@@ -1,11 +1,14 @@
 from rest_framework.filters import OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.generics import get_object_or_404
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
-from rest_framework.permissions import AllowAny
-from users.models import User, Payment
-from users.serializers import UserSerializer, PaymentSerializer, UserDetailSerializer
+from rest_framework.views import APIView
+
+from materials.models import Course
+from users.models import User, Payment, Subscription
+from users.serializers import UserSerializer, PaymentSerializer, UserDetailSerializer, SubscriptionSerializer
 
 
 class UserCreateView(generics.CreateAPIView):
@@ -31,24 +34,20 @@ class UserCreateView(generics.CreateAPIView):
 class UserDetailView(generics.RetrieveAPIView):
     serializer_class = UserDetailSerializer
     queryset = User.objects.all()
-    permission_classes = [IsAuthenticated]
 
 
 class UserUpdateView(generics.UpdateAPIView):
     serializer_class = UserSerializer
     queryset = User.objects.all()
-    permission_classes = [IsAuthenticated]
 
 
 class UserDeleteView(generics.DestroyAPIView):
     queryset = User.objects.all()
-    permission_classes = [IsAuthenticated]
 
 
 class UserListView(generics.ListAPIView):
     serializer_class = UserSerializer
     queryset = User.objects.all()
-    permission_classes = [IsAuthenticated]
 
 
 class PaymentListView(generics.ListAPIView):
@@ -59,4 +58,25 @@ class PaymentListView(generics.ListAPIView):
     filter_backends = [DjangoFilterBackend, OrderingFilter]
     filterset_fields = ('course', 'lesson', 'payment_method')
     ordering_fields = ('payment_date',)
-    permission_classes = [IsAuthenticated]
+
+
+class SubscriptionView(APIView):
+    """Контроллер управления подпиской пользователя на курс
+       в запросе передаем id курса и если подписка на данный курс у текущего пользователя
+       существует - удаляем, если нет - создаем"""
+    serializer_class = SubscriptionSerializer
+
+    @staticmethod
+    def post(request, pk):
+        queryset = Course.objects.filter(pk=pk)
+        user = request.user
+        course = get_object_or_404(queryset=queryset)
+        subs_item = Subscription.objects.filter(course=course, user=user)
+
+        if subs_item.exists():
+            subs_item.delete()
+            message = 'Подписка удалена'
+        else:
+            Subscription.objects.create(user=user, course=course)
+            message = 'Подписка добавлена'
+        return Response({"message": message})
