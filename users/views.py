@@ -65,6 +65,7 @@ class SubscriptionView(APIView):
        в запросе передаем id курса и если подписка на данный курс у текущего пользователя
        существует - удаляем, если нет - создаем"""
     serializer_class = SubscriptionSerializer
+    permission_classes = [IsAuthenticated]
 
     @staticmethod
     def post(request, pk):
