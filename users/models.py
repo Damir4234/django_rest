@@ -3,8 +3,7 @@ from django.db import models
 from django.utils import timezone
 
 from config import settings
-from materials.models import Course, Lesson
-from materials.models import NULLABLE
+from materials.models import Course, Lesson, NULLABLE
 
 
 class UserRoles(models.TextChoices):
@@ -38,16 +37,23 @@ class Payment(models.Model):
     ]
     payment_date = models.DateTimeField(
         verbose_name='Дата платежа', default=timezone.now())
-    payment_amount = models.FloatField(verbose_name='Сумма платежа')
+    payment_amount = models.FloatField(
+        verbose_name='Сумма платежа', **NULLABLE)
     payment_method = models.CharField(max_length=20, verbose_name='Способ платежа', choices=PAYMENT_CHOICES,
                                       default='cash')
+    payment_status = models.CharField(
+        default='unpaid', verbose_name='Статус оплаты')
+    payment_url = models.TextField(verbose_name='Ссылка на оплату', **NULLABLE)
+
+    session_id = models.CharField(
+        max_length=255, verbose_name='id платежной сессии', **NULLABLE)
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.DO_NOTHING, verbose_name='Пользователь',
                              **NULLABLE)
     course = models.ForeignKey(
-        Course, on_delete=models.DO_NOTHING, related_name='paid', **NULLABLE)
+        Course, on_delete=models.DO_NOTHING, related_name='paid_course', **NULLABLE)
     lesson = models.ForeignKey(
-        Lesson, on_delete=models.DO_NOTHING, related_name='paid', **NULLABLE)
+        Lesson, on_delete=models.DO_NOTHING, related_name='paid_lesson', **NULLABLE)
 
     def __str__(self):
         return f'{self.course if self.course and not self.lesson else self.lesson}, оплачено {self.payment_amount} руб'

@@ -1,17 +1,22 @@
+import stripe
 from rest_framework.filters import OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, status
 from rest_framework.generics import get_object_or_404
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from config import settings
 from materials.models import Course
+from services import get_session
 from users.models import User, Payment, Subscription
-from users.serializers import UserSerializer, PaymentSerializer, UserDetailSerializer, SubscriptionSerializer
+from users.serializers import UserSerializer, PaymentSerializer, UserDetailSerializer, SubscriptionSerializer, \
+    PaymentCreateSerializer
 
 
 class UserCreateView(generics.CreateAPIView):
+    """Регистрация нового пользователя"""
     serializer_class = UserSerializer
     permission_classes = [AllowAny]
 
@@ -32,20 +37,24 @@ class UserCreateView(generics.CreateAPIView):
 
 
 class UserDetailView(generics.RetrieveAPIView):
+    """Просмотр профиля пользователя"""
     serializer_class = UserDetailSerializer
     queryset = User.objects.all()
 
 
 class UserUpdateView(generics.UpdateAPIView):
+    """Редактирование профиля пользователя"""
     serializer_class = UserSerializer
     queryset = User.objects.all()
 
 
 class UserDeleteView(generics.DestroyAPIView):
+    """Удаление профиля пользователя"""
     queryset = User.objects.all()
 
 
 class UserListView(generics.ListAPIView):
+    """Просмотр списка зарегистрированных пользователей"""
     serializer_class = UserSerializer
     queryset = User.objects.all()
 
@@ -60,12 +69,28 @@ class PaymentListView(generics.ListAPIView):
     ordering_fields = ('payment_date',)
 
 
+class PaymentCreateView(generics.CreateAPIView):
+    """Создание платежа"""
+    serializer_class = PaymentCreateSerializer
+    permission_classes = [AllowAny]
+
+    def perform_create(self, serializer):
+        stripe.api_key = settings.STRIPE_API_KEY
+        response = get_session()
+        new_payment = serializer.save()
+        new_payment.session_id = response['id']
+        new_payment.payment_url = response['url']
+        new_payment.payment_status = response['payment_status']
+        new_payment.payment_amount = response['amount_total']
+        new_payment.save()
+        return super().perform_create(serializer)
+
+
 class SubscriptionView(APIView):
     """Контроллер управления подпиской пользователя на курс
        в запросе передаем id курса и если подписка на данный курс у текущего пользователя
        существует - удаляем, если нет - создаем"""
     serializer_class = SubscriptionSerializer
-    permission_classes = [IsAuthenticated]
 
     @staticmethod
     def post(request, pk):
